@@ -284,16 +284,28 @@ void LadderManager::RunLadderManager()
 {
 	AgentConfig = new AgentsConfig(Config);
 	PrintThread{} << "Loaded agents: " << std::endl;
-	for (auto &Agent : AgentConfig->BotConfigs)
+	for (const auto &Agent : AgentConfig->BotConfigs)
 	{
 		PrintThread{} << Agent.second.BotName << std::endl;
 	}
 
 	MapList = Config->GetArray("Maps");
 	PrintThread{} << "Starting with " << MapList.size() << " maps:" << std::endl;
-	for (auto &map : MapList)
+	for (const auto &map : MapList)
 	{
-		PrintThread{} << "* " << map << std::endl;
+		if (isMapAvailable(map))
+		{
+			PrintThread{} << "* " << map << std::endl;
+		}
+		else
+		{
+			PrintThread{} << "* " << map << " (not available, removed from map list.)" << std::endl;
+		}
+	}
+	MapList.erase(std::remove_if(MapList.begin(),MapList.end(),[&](const auto& map)->bool { return !isMapAvailable(map);}), MapList.end());
+	if (MapList.empty())
+	{
+		PrintThread{} << "No valid maps remain. Please put the map files in '../StarCraft II/maps/'." << std::endl;
 	}
 	MatchupList *Matchups = new MatchupList(Config->GetValue("MatchupListFile"), AgentConfig, MapList, Config->GetValue("MatchupGenerator"), Config->GetValue("ServerUsername"), Config->GetValue("ServerPassword"));
 	Matchup NextMatch;
@@ -371,4 +383,39 @@ void LadderManager::SaveError(const std::string &Agent1, const std::string &Agen
 	}
 	ofs << "\"" + Agent1 + "\"vs\"" + Agent2 + "\" " + Map << std::endl;
 	ofs.close();
+}
+
+
+bool LadderManager::isMapAvailable(const std::string& map_name) const
+{
+	sc2::ProcessSettings process_settings;
+	sc2::GameSettings game_settings;
+	sc2::ParseSettings(CoordinatorArgc, CoordinatorArgv, process_settings, game_settings);
+	// BattleNet map
+	if (!sc2::HasExtension(map_name, ".SC2Map"))
+	{
+		// Not sure if we should return true here.
+		return true;
+	}
+
+	// Absolute path
+	if (sc2::DoesFileExist(map_name))
+	{
+		return true;
+	}
+
+	// Relative path - Game maps directory
+	std::string game_relative = sc2::GetGameMapsDirectory(process_settings.process_path) + map_name;
+	if (sc2::DoesFileExist(game_relative))
+	{
+		return true;
+	}
+
+	// Relative path - Library maps directory
+	std::string library_relative = sc2::GetLibraryMapsDirectory() + map_name;
+	if (sc2::DoesFileExist(library_relative))
+	{
+		return true;
+	}
+	return false;
 }

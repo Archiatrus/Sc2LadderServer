@@ -28,6 +28,7 @@ private:
 
 	bool LoginToServer();
     std::vector<std::string> MapList;
+	bool isMapAvailable(const std::string& map_name) const;
 	std::string ResultsLogFile;
 
 	void SaveError(const std::string &Agent1, const std::string &Agent2, const std::string &Map);
